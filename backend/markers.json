@@ -29,6 +29,16 @@
       "user": "NatureLover",
       "photoUrl": null,
       "timestamp": "2025-09-15T08:16:11.443Z"
+    },
+    {
+      "id": "e7ab4cbb-ffa9-4b1d-a961-d624af422eda",
+      "type": "tree",
+      "description": "Planted a tree",
+      "lat": 22.579623839087656,
+      "lng": 88.41440091955661,
+      "user": "Arya",
+      "photoUrl": null,
+      "timestamp": "2025-09-15T12:47:22.724Z"
     }
   ]
 }

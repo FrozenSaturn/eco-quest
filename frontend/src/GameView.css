@@ -1,0 +1,25 @@
+.game-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.game-map {
+  width: 100%;
+  height: 100%;
+}
+
+.character {
+  position: absolute;
+  width: 32px; /* Adjust based on your sprite's size */
+  height: 48px; /* Adjust based on your sprite's size */
+  z-index: 1000; /* Ensure character is above the map */
+  transition: top 0.1s linear, left 0.1s linear;
+}
+
+.character img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}

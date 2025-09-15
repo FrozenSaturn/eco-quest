@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import L from 'leaflet';
 import './App.css';
 
 // Mock user data for leaderboard
@@ -9,7 +10,7 @@ const mockUsers = [
   { name: 'CleanupCrew', trees: 5, cleanups: 15, schools: 1, total: 21 }
 ];
 
-const API_BASE = 'http://localhost:3001';
+const API_BASE = '/api';
 
 function App() {
   const mapRef = useRef(null);
@@ -27,7 +28,7 @@ function App() {
   const [currentUser, setCurrentUser] = useState('');
   const [showUserInput, setShowUserInput] = useState(false);
 
-  // Initialize user
+  // Initialize user from localStorage
   useEffect(() => {
     const savedUser = localStorage.getItem('ecoquest-user');
     if (savedUser) {
@@ -37,21 +38,32 @@ function App() {
     }
   }, []);
 
-  // Initialize Leaflet map
+  // Initialize Leaflet map instance (runs only once)
   useEffect(() => {
-    if (!window.L || map) return;
+    if (!mapRef.current || map) return;
 
-    const leafletMap = window.L.map(mapRef.current, {
+    const leafletMap = L.map(mapRef.current, {
       center: [22.5726, 88.3639], // Kolkata coordinates
       zoom: 13
     });
 
-    window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors'
     }).addTo(leafletMap);
 
-    // Handle map clicks
-    leafletMap.on('click', (e) => {
+    setMap(leafletMap);
+
+    return () => {
+      leafletMap.remove();
+      setMap(null);
+    };
+  }, []); // Empty dependency array ensures this runs only once
+
+  // Effect to handle map clicks (re-runs when currentUser changes)
+  useEffect(() => {
+    if (!map) return;
+
+    const onMapClick = (e) => {
       if (currentUser) {
         setNewMarker(prev => ({
           ...prev,
@@ -63,27 +75,28 @@ function App() {
         alert('Please enter your name first!');
         setShowUserInput(true);
       }
-    });
-
-    setMap(leafletMap);
-
-    return () => {
-      leafletMap.remove();
     };
-  }, [currentUser]);
 
-  // Load markers
+    map.on('click', onMapClick);
+
+    // Cleanup function to remove the listener before adding a new one
+    return () => {
+      map.off('click', onMapClick);
+    };
+  }, [map, currentUser]); // Dependency array includes map and currentUser
+
+  // Load markers from backend
   useEffect(() => {
     fetchMarkers();
   }, []);
 
-  // Add markers to map
+  // Add/update markers on the map
   useEffect(() => {
-    if (!map || !window.L) return;
+    if (!map) return;
 
     // Clear existing markers
     map.eachLayer((layer) => {
-      if (layer instanceof window.L.Marker) {
+      if (layer instanceof L.Marker) {
         map.removeLayer(layer);
       }
     });
@@ -91,7 +104,7 @@ function App() {
     // Add new markers
     markers.forEach(marker => {
       const icon = getMarkerIcon(marker.type);
-      const leafletMarker = window.L.marker([marker.lat, marker.lng], { icon })
+      const leafletMarker = L.marker([marker.lat, marker.lng], { icon })
         .addTo(map);
 
       leafletMarker.bindPopup(`
@@ -182,7 +195,7 @@ function App() {
       school: 'blue'
     };
     
-    return window.L.divIcon({
+    return L.divIcon({
       className: 'custom-marker',
       html: `<div style="background-color: ${colors[type]}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white;"></div>`,
       iconSize: [20, 20],
@@ -193,10 +206,10 @@ function App() {
   const getActionTitle = (type) => {
     const titles = {
       tree: 'Tree Planted 🌳',
-      cleanup: 'Cleanup Done 🧹',
+      cleanup: 'Cleanup Done 🗑️',
       school: 'School Added 🏫'
     };
-    return titles[type];
+    return titles[type] || 'Action';
   };
 
   const handlePhotoChange = (e) => {
@@ -296,7 +309,7 @@ function App() {
               <span>Trees Planted: {stats.trees}</span>
             </div>
             <div className="stat-item">
-              <span className="stat-icon">🧹</span>
+              <span className="stat-icon">🗑️</span>
               <span>Cleanups: {stats.cleanups}</span>
             </div>
             <div className="stat-item">
