@@ -290,3 +290,23 @@ body {
   margin-bottom: 15px;
   border-left: 4px solid #c62828;
 }
+
+.game-view-button {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+  padding: 10px 20px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 16px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.game-view-button:hover {
+  background-color: #45a049;
+}

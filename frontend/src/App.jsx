@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import L from 'leaflet';
 import './App.css';
+import { Link } from 'react-router-dom';
 
 // Mock user data for leaderboard
 const mockUsers = [
@@ -291,6 +292,9 @@ function App() {
         {/* Map */}
         <div className="map-container">
           <div ref={mapRef} className="map"></div>
+          <Link to="/game" className="game-view-button">
+            Game View
+          </Link>
         </div>
 
         {/* Sidebar */}
