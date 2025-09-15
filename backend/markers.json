@@ -1,0 +1,34 @@
+{
+  "markers": [
+    {
+      "id": "1",
+      "type": "tree",
+      "description": "Planted a mango tree in Eco Park",
+      "lat": 22.5568,
+      "lng": 88.4107,
+      "user": "EcoWarrior123",
+      "photoUrl": null,
+      "timestamp": "2025-09-15T08:16:11.442Z"
+    },
+    {
+      "id": "2",
+      "type": "cleanup",
+      "description": "Cleaned up plastic waste near Hooghly River",
+      "lat": 22.5675,
+      "lng": 88.3708,
+      "user": "GreenThumb",
+      "photoUrl": null,
+      "timestamp": "2025-09-15T08:16:11.443Z"
+    },
+    {
+      "id": "3",
+      "type": "school",
+      "description": "Environmental awareness program at local school",
+      "lat": 22.5812,
+      "lng": 88.4042,
+      "user": "NatureLover",
+      "photoUrl": null,
+      "timestamp": "2025-09-15T08:16:11.443Z"
+    }
+  ]
+}
