@@ -13,7 +13,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Data storage file
-const DATA_FILE = path.join(__dirname, 'markers.json');
+const DATA_FILE = path.join('/var/data', 'markers.json');
 
 // Initialize data file if it doesn't exist
 const initDataFile = () => {
