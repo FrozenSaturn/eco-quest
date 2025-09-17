@@ -1,25 +1,24 @@
 .game-container {
   position: relative;
   width: 100vw;
-  height: 100vh; /* This is the key: force the container to be the full screen height */
+  height: 100vh;
   overflow: hidden;
 }
 
 .game-map {
   width: 100%;
-  height: 100%; /* Make the map div fill its container */
+  height: 100%;
 }
 
 .character {
   position: absolute;
-  /* Center the character on the screen */
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: 64px; /* Slightly larger for better visibility */
+  width: 64px;
   height: 96px;
   z-index: 1000;
-  pointer-events: none; /* Prevent the character from blocking map clicks */
+  pointer-events: none;
 }
 
 .character img {
@@ -30,8 +29,10 @@
 
 .capture-button {
   position: absolute;
-  bottom: 30px;
-  right: 30px;
+  /* Moved to top right */
+  top: 30px; /* Distance from the top */
+  right: 30px; /* Distance from the right */
+  
   z-index: 1001;
   width: 60px;
   height: 60px;
