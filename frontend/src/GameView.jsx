@@ -15,6 +15,7 @@ const GameView = () => {
   const [itemMarkersLayer, setItemMarkersLayer] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [currentUser, setCurrentUser] = useState('');
+  const [userLocation, setUserLocation] = useState({ lat: 22.5726, lng: 88.3639 }); // Default to Kolkata
 
   // Fetch user from localStorage
   useEffect(() => {
@@ -22,6 +23,31 @@ const GameView = () => {
     if (savedUser) {
       setCurrentUser(savedUser);
     }
+  }, []);
+
+  // Track user's live location
+  useEffect(() => {
+    let watchId;
+    if ('geolocation' in navigator) {
+      watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          setUserLocation({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude
+          });
+        },
+        (err) => {
+          console.error('Geolocation error:', err);
+          // Optionally show error to user
+        },
+        { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 }
+      );
+    } else {
+      console.warn('Geolocation not supported');
+    }
+    return () => {
+      if (watchId) navigator.geolocation.clearWatch(watchId);
+    };
   }, []);
 
   // Wrap fetchMarkers in useCallback so it has a stable identity
@@ -131,21 +157,7 @@ const GameView = () => {
   }, [map, handleCleanup]);
 
   // Handle keyboard movement by panning the map
-  useEffect(() => {
-    if (!map) return;
-    const handleKeyDown = (e) => {
-      const step = 20;
-      switch (e.key) {
-        case 'ArrowUp': map.panBy([0, -step], { animate: false }); break;
-        case 'ArrowDown': map.panBy([0, step], { animate: false }); break;
-        case 'ArrowLeft': map.panBy([-step, 0], { animate: false }); break;
-        case 'ArrowRight': map.panBy([step, 0], { animate: false }); break;
-        default: break;
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [map]);
+  
 
   // Update item markers on the map
   useEffect(() => {
@@ -183,6 +195,13 @@ const GameView = () => {
     });
   }, [markers, map, itemMarkersLayer]);
 
+  // Center the map on the user's location when available
+useEffect(() => {
+  if (map && userLocation) {
+    map.setView([userLocation.lat, userLocation.lng], map.getZoom(), { animate: true });
+  }
+}, [map, userLocation]);
+
   return (
     <div className="game-container">
       <div ref={mapRef} className="game-map"></div>
@@ -197,8 +216,8 @@ const GameView = () => {
         show={showForm}
         onClose={() => setShowForm(false)}
         onSubmit={handleFormSubmit}
-        lat={map ? map.getCenter().lat : 0}
-        lng={map ? map.getCenter().lng : 0}
+        lat={userLocation.lat}
+        lng={userLocation.lng}
         currentUser={currentUser}
       />
     </div>
