@@ -1,24 +1,22 @@
+// frontend/src/App.jsx
+
 import React, { useState, useEffect, useRef } from 'react';
 import L from 'leaflet';
-import './App.css';
-import { Link } from 'react-router-dom';
+import './App.css'; // We will update this file
+import { Link, useNavigate } from 'react-router-dom';
+import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
 
-// Mock user data for leaderboard
-const mockUsers = [
-  { name: 'EcoWarrior123', trees: 15, cleanups: 8, schools: 2, total: 25 },
-  { name: 'GreenThumb', trees: 12, cleanups: 10, schools: 1, total: 23 },
-  { name: 'NatureLover', trees: 20, cleanups: 2, schools: 0, total: 22 },
-  { name: 'CleanupCrew', trees: 5, cleanups: 15, schools: 1, total: 21 }
-];
+// This logic makes your API calls deployment-ready.
+const API_BASE = import.meta.env.PROD ? import.meta.env.VITE_API_BASE_URL : '/api';
 
-const API_BASE = '/api';
 
 function App() {
   const mapRef = useRef(null);
   const [map, setMap] = useState(null);
   const [markers, setMarkers] = useState([]);
-  const [stats, setStats] = useState({ trees: 0, cleanups: 0, schools: 0 });
+  const [stats, setStats] = useState({ trees: 0, cleanups: 0, schools: 0, total: 0 });
   const [showForm, setShowForm] = useState(false);
+  const [showStatsModal, setShowStatsModal] = useState(false);
   const [newMarker, setNewMarker] = useState({
     type: 'tree',
     description: '',
@@ -26,88 +24,57 @@ function App() {
     lng: 0,
     photo: null
   });
-  const [currentUser, setCurrentUser] = useState('');
-  const [showUserInput, setShowUserInput] = useState(false);
 
-  // Initialize user from localStorage
+  const navigate = useNavigate();
+  const auth = getAuth();
+  const [user, setUser] = useState(null);
+
+  // --- Hooks ---
   useEffect(() => {
-    const savedUser = localStorage.getItem('ecoquest-user');
-    if (savedUser) {
-      setCurrentUser(savedUser);
-    } else {
-      setShowUserInput(true);
-    }
-  }, []);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+      } else {
+        navigate('/login');
+      }
+    });
+    return () => unsubscribe();
+  }, [auth, navigate]);
 
-  // Initialize Leaflet map instance (runs only once)
   useEffect(() => {
     if (!mapRef.current || map) return;
-
-    const leafletMap = L.map(mapRef.current, {
-      center: [22.5726, 88.3639], // Kolkata coordinates
-      zoom: 13
-    });
-
+    const leafletMap = L.map(mapRef.current, { center: [22.5726, 88.3639], zoom: 13 });
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors'
     }).addTo(leafletMap);
-
     setMap(leafletMap);
+    return () => { if (leafletMap) leafletMap.remove(); setMap(null); };
+  }, []);
 
-    return () => {
-      leafletMap.remove();
-      setMap(null);
-    };
-  }, []); // Empty dependency array ensures this runs only once
-
-  // Effect to handle map clicks (re-runs when currentUser changes)
   useEffect(() => {
     if (!map) return;
-
     const onMapClick = (e) => {
-      if (currentUser) {
-        setNewMarker(prev => ({
-          ...prev,
-          lat: e.latlng.lat,
-          lng: e.latlng.lng
-        }));
+      if (user) {
+        setNewMarker(prev => ({ ...prev, lat: e.latlng.lat, lng: e.latlng.lng }));
         setShowForm(true);
-      } else {
-        alert('Please enter your name first!');
-        setShowUserInput(true);
       }
     };
-
     map.on('click', onMapClick);
+    return () => map.off('click', onMapClick);
+  }, [map, user]);
 
-    // Cleanup function to remove the listener before adding a new one
-    return () => {
-      map.off('click', onMapClick);
-    };
-  }, [map, currentUser]); // Dependency array includes map and currentUser
-
-  // Load markers from backend
   useEffect(() => {
     fetchMarkers();
   }, []);
 
-  // Add/update markers on the map
   useEffect(() => {
     if (!map) return;
-
-    // Clear existing markers
     map.eachLayer((layer) => {
-      if (layer instanceof L.Marker) {
-        map.removeLayer(layer);
-      }
+      if (layer instanceof L.Marker) map.removeLayer(layer);
     });
-
-    // Add new markers
     markers.forEach(marker => {
       const icon = getMarkerIcon(marker.type);
-      const leafletMarker = L.marker([marker.lat, marker.lng], { icon })
-        .addTo(map);
-
+      const leafletMarker = L.marker([marker.lat, marker.lng], { icon }).addTo(map);
       leafletMarker.bindPopup(`
         <div>
           <h4>${getActionTitle(marker.type)}</h4>
@@ -117,17 +84,11 @@ function App() {
         </div>
       `);
     });
-
-    // Update stats
-    const newStats = markers.reduce((acc, marker) => {
-      if (marker.type === 'tree') acc.trees++;
-      else if (marker.type === 'cleanup') acc.cleanups++;
-      else if (marker.type === 'school') acc.schools++;
-      return acc;
-    }, { trees: 0, cleanups: 0, schools: 0 });
+    const newStats = markers.reduce((acc, m) => ({ ...acc, [m.type + 's']: (acc[m.type + 's'] || 0) + 1 }), { trees: 0, cleanups: 0, schools: 0 });
     setStats(newStats);
   }, [markers, map]);
 
+  // --- Functions ---
   const fetchMarkers = async () => {
     try {
       const response = await fetch(`${API_BASE}/markers`);
@@ -140,145 +101,73 @@ function App() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!newMarker.description.trim()) {
-      alert('Please add a description');
-      return;
-    }
+    if (!newMarker.description.trim()) return alert('Please add a description');
+    if (!user) return alert('You must be logged in.');
 
     const markerData = {
       type: newMarker.type,
       description: newMarker.description,
       lat: newMarker.lat,
       lng: newMarker.lng,
-      user: currentUser,
+      user: user.displayName || user.email,
       photoUrl: newMarker.photo ? URL.createObjectURL(newMarker.photo) : null
     };
-
     try {
       const response = await fetch(`${API_BASE}/markers`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(markerData)
       });
-
       if (response.ok) {
         await fetchMarkers();
         setShowForm(false);
-        setNewMarker({
-          type: 'tree',
-          description: '',
-          lat: 0,
-          lng: 0,
-          photo: null
-        });
+        setNewMarker({ type: 'tree', description: '', lat: 0, lng: 0, photo: null });
       }
     } catch (error) {
       console.error('Failed to add marker:', error);
-      alert('Failed to add marker. Please try again.');
     }
   };
 
-  const handleUserSubmit = (e) => {
-    e.preventDefault();
-    if (currentUser.trim()) {
-      localStorage.setItem('ecoquest-user', currentUser);
-      setShowUserInput(false);
-    }
-  };
+  const handleLogout = () => signOut(auth);
+  const getMarkerIcon = (type) => L.divIcon({ className: 'custom-marker', html: `<div class="marker-pin ${type}"></div>`, iconSize: [30, 42], iconAnchor: [15, 42] });
+  const getActionTitle = (type) => ({ tree: 'Tree Planted 🌳', cleanup: 'Cleanup Done 🗑️', school: 'School Added 🏫' }[type] || 'Action');
+  const handlePhotoChange = (e) => setNewMarker(prev => ({ ...prev, photo: e.target.files[0] }));
 
-  const getMarkerIcon = (type) => {
-    const colors = {
-      tree: 'green',
-      cleanup: 'orange',
-      school: 'blue'
-    };
-    
-    return L.divIcon({
-      className: 'custom-marker',
-      html: `<div style="background-color: ${colors[type]}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white;"></div>`,
-      iconSize: [20, 20],
-      iconAnchor: [10, 10]
-    });
-  };
-
-  const getActionTitle = (type) => {
-    const titles = {
-      tree: 'Tree Planted 🌳',
-      cleanup: 'Cleanup Done 🗑️',
-      school: 'School Added 🏫'
-    };
-    return titles[type] || 'Action';
-  };
-
-  const handlePhotoChange = (e) => {
-    const file = e.target.files[0];
-    setNewMarker(prev => ({
-      ...prev,
-      photo: file
-    }));
-  };
+  // --- Render ---
+  const SidebarContent = () => (
+    <>
+      <div className="user-info">
+        <h3>Welcome, {user ? user.displayName || user.email : 'Guest'}!</h3>
+        <button onClick={handleLogout} className="change-user">Logout</button>
+      </div>
+      <div className="stats">
+        <h3>Global Impact</h3>
+        <div className="stat-item">🌳<span>Trees Planted: {stats.trees}</span></div>
+        <div className="stat-item">🗑️<span>Cleanups: {stats.cleanups}</span></div>
+        <div className="stat-item">🏫<span>Schools: {stats.schools}</span></div>
+      </div>
+      <div className="instructions">
+        <h4>How to play:</h4>
+        <p>Click anywhere on the map to add an environmental action!</p>
+      </div>
+    </>
+  );
 
   return (
     <div className="app">
-      {/* User Input Modal */}
-      {showUserInput && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <h3>Welcome to EcoQuest!</h3>
-            <form onSubmit={handleUserSubmit}>
-              <input
-                type="text"
-                placeholder="Enter your name"
-                value={currentUser}
-                onChange={(e) => setCurrentUser(e.target.value)}
-                required
-              />
-              <button type="submit">Start Playing</button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Form Modal */}
       {showForm && (
         <div className="modal-overlay">
           <div className="modal">
             <h3>Add Environmental Action</h3>
             <form onSubmit={handleSubmit}>
-              <select
-                value={newMarker.type}
-                onChange={(e) => setNewMarker(prev => ({ ...prev, type: e.target.value }))}
-              >
+              <select value={newMarker.type} onChange={(e) => setNewMarker(prev => ({ ...prev, type: e.target.value }))}>
                 <option value="tree">Tree Planted</option>
                 <option value="cleanup">Cleanup</option>
                 <option value="school">School</option>
               </select>
-              
-              <textarea
-                placeholder="Description of your action..."
-                value={newMarker.description}
-                onChange={(e) => setNewMarker(prev => ({ ...prev, description: e.target.value }))}
-                required
-              />
-              
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handlePhotoChange}
-              />
-              
-              {newMarker.photo && (
-                <div className="photo-preview">
-                  <img
-                    src={URL.createObjectURL(newMarker.photo)}
-                    alt="Preview"
-                  />
-                </div>
-              )}
-              
+              <textarea placeholder="Description of your action..." value={newMarker.description} onChange={(e) => setNewMarker(prev => ({ ...prev, description: e.target.value }))} required />
+              <input type="file" accept="image/*" onChange={handlePhotoChange} />
+              {newMarker.photo && <div className="photo-preview"><img src={URL.createObjectURL(newMarker.photo)} alt="Preview" /></div>}
               <div className="form-buttons">
                 <button type="button" onClick={() => setShowForm(false)}>Cancel</button>
                 <button type="submit">Add Marker</button>
@@ -288,57 +177,27 @@ function App() {
         </div>
       )}
 
+      {showStatsModal && (
+        <div className="modal-overlay" onClick={() => setShowStatsModal(false)}>
+            <div className="modal stats-modal" onClick={e => e.stopPropagation()}>
+                <SidebarContent />
+            </div>
+        </div>
+      )}
+      
       <div className="main-content">
-        {/* Map */}
         <div className="map-container">
           <div ref={mapRef} className="map"></div>
-          <Link to="/game" className="game-view-button">
-            Game View
-          </Link>
         </div>
-
-        {/* Sidebar */}
         <div className="sidebar">
-          <div className="user-info">
-            <h3>Welcome, {currentUser}!</h3>
-            <button onClick={() => setShowUserInput(true)} className="change-user">
-              Change User
-            </button>
-          </div>
-
-          <div className="stats">
-            <h3>Global Impact</h3>
-            <div className="stat-item">
-              <span className="stat-icon">🌳</span>
-              <span>Trees Planted: {stats.trees}</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-icon">🗑️</span>
-              <span>Cleanups: {stats.cleanups}</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-icon">🏫</span>
-              <span>Schools: {stats.schools}</span>
-            </div>
-          </div>
-
-          <div className="leaderboard">
-            <h3>Leaderboard</h3>
-            {mockUsers.map((user, index) => (
-              <div key={index} className="leader-item">
-                <span className="rank">#{index + 1}</span>
-                <span className="name">{user.name}</span>
-                <span className="score">{user.total}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="instructions">
-            <h4>How to play:</h4>
-            <p>Click anywhere on the map to add an environmental action!</p>
-          </div>
+          <SidebarContent />
         </div>
       </div>
+
+      <nav className="bottom-nav">
+        <button onClick={() => setShowStatsModal(true)} className="nav-button">📊 Stats</button>
+        <Link to="/game" className="nav-button game-button">🎮 Game View</Link>
+      </nav>
     </div>
   );
 }
