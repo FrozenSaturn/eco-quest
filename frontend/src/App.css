@@ -7,26 +7,29 @@
 
 html, body {
   height: 100%;
-  overflow: hidden; /* Prevent unwanted scrolling on mobile */
+  overflow: hidden; /* Prevent unwanted scrolling */
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
   background-color: #f0f8ff;
 }
 
 .app {
   height: 100vh;
-  position: relative; /* This is crucial: makes it the positioning context for the nav bar */
+  position: relative; /* This is crucial for absolute positioning of children */
+}
+
+.main-content {
+  /* This is the key: The main content fills the entire screen */
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   flex-direction: column;
 }
 
-.main-content {
-  flex: 1;
-  display: flex;
-  min-height: 0; /* Prevents flexbox overflow */
-}
-
 .map-container {
-  flex-grow: 1;
+  flex-grow: 1; /* Map takes all available vertical space */
   position: relative;
 }
 
@@ -42,7 +45,7 @@ html, body {
 
 /* --- Bottom Navigation Bar (Mobile Only) --- */
 .bottom-nav {
-  /* This is the key change: Position it absolutely at the bottom */
+  /* Position the nav bar at the bottom of the .app container */
   position: absolute;
   bottom: 0;
   left: 0;
@@ -107,7 +110,6 @@ html, body {
 .modal button[type="submit"] { background: #4CAF50; color: white; border: none; }
 .modal button[type="button"] { background: #f5f5f5; color: #666; border: 1px solid #ddd; }
 
-
 /* --- Tablet and Desktop Styles (Media Query) --- */
 @media (min-width: 768px) {
   .app {
@@ -115,12 +117,11 @@ html, body {
   }
   .main-content {
     flex-direction: row; /* Switch back to side-by-side layout */
+    position: static;
   }
-
   .bottom-nav {
     display: none; /* Hide the bottom nav */
   }
-  
   .sidebar {
     display: block;
     width: 320px;
