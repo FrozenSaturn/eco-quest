@@ -89,6 +89,16 @@
       "user": "Arya",
       "photoUrl": null,
       "timestamp": "2025-09-17T16:20:52.769Z"
+    },
+    {
+      "id": "b370fc90-953a-411b-b0a7-9b8438860ad6",
+      "type": "tree",
+      "description": "jkkj",
+      "lat": 22.670955487435783,
+      "lng": 88.4427218524254,
+      "user": "Arya",
+      "photoUrl": null,
+      "timestamp": "2025-09-17T17:24:01.640Z"
     }
   ]
 }
