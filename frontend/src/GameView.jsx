@@ -6,7 +6,7 @@ import treeSprite from './assets/tree.png';
 import cleanupSprite from './assets/cleanup.png';
 import ActionForm from './ActionForm';
 
-const API_BASE = '/api';
+const API_BASE = import.meta.env.PROD ? import.meta.env.VITE_API_BASE_URL : '/api';
 
 const GameView = () => {
   const mapRef = useRef(null);
