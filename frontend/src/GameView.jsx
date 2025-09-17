@@ -5,6 +5,8 @@ import characterSprite from './assets/character.png';
 import treeSprite from './assets/tree.png';
 import cleanupSprite from './assets/cleanup.png';
 import ActionForm from './ActionForm';
+import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { useNavigate } from 'react-router-dom';
 
 const API_BASE = import.meta.env.PROD ? import.meta.env.VITE_API_BASE_URL : '/api';
 
@@ -14,16 +16,25 @@ const GameView = () => {
   const [markers, setMarkers] = useState([]);
   const [itemMarkersLayer, setItemMarkersLayer] = useState(null);
   const [showForm, setShowForm] = useState(false);
-  const [currentUser, setCurrentUser] = useState('');
-  const [userLocation, setUserLocation] = useState({ lat: 22.5726, lng: 88.3639 }); // Default to Kolkata
+  const [user, setUser] = useState(null);
+  const [userLocation, setUserLocation] = useState({ lat: 22.5726, lng: 88.3639 });
 
-  // Fetch user from localStorage
+  const auth = getAuth();
+  const navigate = useNavigate();
+
+  // Get the real-time user from Firebase Auth to ensure we have the correct data
   useEffect(() => {
-    const savedUser = localStorage.getItem('ecoquest-user');
-    if (savedUser) {
-      setCurrentUser(savedUser);
-    }
-  }, []);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
+        setUser(currentUser);
+      } else {
+        // If the user logs out or the session expires, redirect to login
+        navigate('/login');
+      }
+    });
+    // Cleanup the subscription when the component unmounts
+    return () => unsubscribe();
+  }, [auth, navigate]);
 
   // Track user's live location
   useEffect(() => {
@@ -38,22 +49,19 @@ const GameView = () => {
         },
         (err) => {
           console.error('Geolocation error:', err);
-          // Optionally show error to user
         },
         { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 }
       );
-    } else {
-      console.warn('Geolocation not supported');
     }
     return () => {
       if (watchId) navigator.geolocation.clearWatch(watchId);
     };
   }, []);
 
-  // Wrap fetchMarkers in useCallback so it has a stable identity
   const fetchMarkers = useCallback(async () => {
     try {
       const response = await fetch(`${API_BASE}/markers`);
+      if (!response.ok) throw new Error('Network response was not ok');
       const data = await response.json();
       setMarkers(data);
     } catch (error) {
@@ -61,164 +69,121 @@ const GameView = () => {
     }
   }, []);
 
-  // Initial fetch of markers
   useEffect(() => {
     fetchMarkers();
   }, [fetchMarkers]);
 
   const handleCaptureClick = () => {
-    if (!currentUser) {
-      alert("Please set your name in the main map view first!");
+    if (!user) {
+      alert("Please log in first!");
+      navigate('/login');
       return;
     }
     setShowForm(true);
   };
 
   const handleFormSubmit = async (markerData) => {
+    const finalMarkerData = {
+      ...markerData,
+      user: user.displayName || user.email // Use the live user's name
+    };
     try {
       const response = await fetch(`${API_BASE}/markers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(markerData)
+        body: JSON.stringify(finalMarkerData)
       });
       if (response.ok) {
-        alert('Action submitted successfully!');
         setShowForm(false);
         fetchMarkers();
       } else {
-        alert('Failed to submit action. Please try again.');
+        alert('Failed to submit action.');
       }
     } catch (error) {
       console.error('Failed to add marker:', error);
-      alert('Failed to add marker. Please try again.');
     }
   };
 
-  // Wrap handleCleanup in useCallback to prevent it from being stale
   const handleCleanup = useCallback(async (markerId) => {
-    if (!map) return;
     try {
-      const response = await fetch(`${API_BASE}/markers/${markerId}`, {
-        method: 'DELETE',
-      });
+      const response = await fetch(`${API_BASE}/markers/${markerId}`, { method: 'DELETE' });
       if (response.ok) {
-        alert('Cleanup completed and removed!');
-        map.closePopup();
+        if(map) map.closePopup();
         fetchMarkers();
       } else {
-         const errorData = await response.json();
-        console.error('Cleanup failed:', errorData);
-        alert('Failed to complete cleanup. Please try again.');
+        alert('Failed to complete cleanup.');
       }
     } catch (error) {
       console.error('Failed to delete marker:', error);
-      alert('Failed to delete marker. Please try again.');
     }
   }, [map, fetchMarkers]);
 
-  // Initialize the map (runs only once)
   useEffect(() => {
     if (!mapRef.current || map) return;
     const leafletMap = L.map(mapRef.current, {
-      center: [22.5726, 88.3639],
+      center: [userLocation.lat, userLocation.lng],
       zoom: 18,
       zoomControl: false,
       dragging: false,
       scrollWheelZoom: false,
       doubleClickZoom: false,
     });
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors'
-    }).addTo(leafletMap);
-    
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(leafletMap);
     setMap(leafletMap);
     setItemMarkersLayer(L.layerGroup().addTo(leafletMap));
     return () => leafletMap.remove();
   }, []);
 
-  // This effect now correctly handles attaching event listeners inside popups
+  useEffect(() => {
+    if (map && userLocation) {
+      map.setView([userLocation.lat, userLocation.lng], map.getZoom(), { animate: true });
+    }
+  }, [map, userLocation]);
+
   useEffect(() => {
     if (!map) return;
     const onPopupOpen = (e) => {
-        const container = e.popup.getElement();
-        const cleanupButton = container.querySelector('.cleanup-button');
-        if (cleanupButton) {
-            const markerId = cleanupButton.dataset.id;
-            // Use L.DomEvent to safely attach a listener
-            L.DomEvent.on(cleanupButton, 'click', () => {
-                handleCleanup(markerId);
-            });
-        }
+      const cleanupButton = e.popup.getElement().querySelector('.cleanup-button');
+      if (cleanupButton) {
+        L.DomEvent.on(cleanupButton, 'click', () => handleCleanup(cleanupButton.dataset.id));
+      }
     };
     map.on('popupopen', onPopupOpen);
-    return () => {
-      map.off('popupopen', onPopupOpen);
-    };
+    return () => map.off('popupopen', onPopupOpen);
   }, [map, handleCleanup]);
 
-  // Handle keyboard movement by panning the map
-  
-
-  // Update item markers on the map
   useEffect(() => {
-    if (!map || !itemMarkersLayer) return;
+    if (!itemMarkersLayer) return;
     itemMarkersLayer.clearLayers();
-
-    const treeIcon = L.icon({
-        iconUrl: treeSprite, iconSize: [48, 48], iconAnchor: [24, 48],
-    });
-    const cleanupIcon = L.icon({
-        iconUrl: cleanupSprite, iconSize: [40, 40], iconAnchor: [20, 20],
-    });
+    const treeIcon = L.icon({ iconUrl: treeSprite, iconSize: [48, 48], iconAnchor: [24, 48] });
+    const cleanupIcon = L.icon({ iconUrl: cleanupSprite, iconSize: [40, 40], iconAnchor: [20, 20] });
 
     markers.forEach(marker => {
-      let icon;
-      let popupContent;
-
-      if (marker.type === 'tree') {
-        icon = treeIcon;
-        popupContent = `<div><b>Tree planted by:</b><br>${marker.user}<br><small>${marker.description}</small></div>`;
-      } else if (marker.type === 'cleanup') {
-        icon = cleanupIcon;
-        popupContent = `
-          <div>
-            <b>Cleanup reported by:</b><br>${marker.user}<br><small>${marker.description}</small>
-            <button class="popup-button cleanup-button" data-id="${marker.id}">Cleaned Up!</button>
-          </div>`;
+      let icon = marker.type === 'tree' ? treeIcon : cleanupIcon;
+      let popupContent = `
+        <div>
+          <b>${marker.type === 'tree' ? 'Tree planted by' : 'Cleanup by'}:</b><br>${marker.user}<br><small>${marker.description}</small>
+        </div>`;
+      if (marker.type === 'cleanup') {
+        popupContent += `<button class="popup-button cleanup-button" data-id="${marker.id}">Cleaned Up!</button>`;
       }
-
-      if (icon) {
-        L.marker([marker.lat, marker.lng], { icon })
-          .addTo(itemMarkersLayer)
-          .bindPopup(popupContent);
-      }
+      L.marker([marker.lat, marker.lng], { icon }).addTo(itemMarkersLayer).bindPopup(popupContent);
     });
-  }, [markers, map, itemMarkersLayer]);
-
-  // Center the map on the user's location when available
-useEffect(() => {
-  if (map && userLocation) {
-    map.setView([userLocation.lat, userLocation.lng], map.getZoom(), { animate: true });
-  }
-}, [map, userLocation]);
+  }, [markers, itemMarkersLayer]);
 
   return (
     <div className="game-container">
       <div ref={mapRef} className="game-map"></div>
-      <div className="character">
-        <img src={characterSprite} alt="character" />
-      </div>
-      <button className="capture-button" onClick={handleCaptureClick}>
-        📸
-      </button>
-
+      <div className="character"><img src={characterSprite} alt="character" /></div>
+      <button className="capture-button" onClick={handleCaptureClick}>📸</button>
       <ActionForm
         show={showForm}
         onClose={() => setShowForm(false)}
         onSubmit={handleFormSubmit}
         lat={userLocation.lat}
         lng={userLocation.lng}
-        currentUser={currentUser}
+        // This prop is no longer strictly needed if the parent handles the full user object, but we pass it for clarity
+        currentUser={user ? user.displayName || user.email : ''}
       />
     </div>
   );
