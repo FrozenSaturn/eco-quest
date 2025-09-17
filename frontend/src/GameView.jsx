@@ -22,17 +22,21 @@ const GameView = () => {
   const auth = getAuth();
   const navigate = useNavigate();
 
+  // Get the real-time user from Firebase Auth to ensure we have the correct data
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
       } else {
+        // If the user logs out or the session expires, redirect to login
         navigate('/login');
       }
     });
+    // Cleanup the subscription when the component unmounts
     return () => unsubscribe();
   }, [auth, navigate]);
 
+  // Track user's live location
   useEffect(() => {
     let watchId;
     if ('geolocation' in navigator) {
@@ -81,7 +85,7 @@ const GameView = () => {
   const handleFormSubmit = async (markerData) => {
     const finalMarkerData = {
       ...markerData,
-      user: user.displayName || user.email
+      user: user.displayName || user.email // Use the live user's name
     };
     try {
       const response = await fetch(`${API_BASE}/markers`, {
@@ -178,6 +182,7 @@ const GameView = () => {
         onSubmit={handleFormSubmit}
         lat={userLocation.lat}
         lng={userLocation.lng}
+        // This prop is no longer strictly needed if the parent handles the full user object, but we pass it for clarity
         currentUser={user ? user.displayName || user.email : ''}
       />
     </div>
