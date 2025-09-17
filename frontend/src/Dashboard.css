@@ -1,0 +1,103 @@
+/* frontend/src/Dashboard.css */
+
+.dashboard {
+  padding: 20px;
+  background-color: #f0f8ff;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  color: #333;
+}
+
+.dashboard-header {
+  text-align: center;
+  margin-bottom: 25px;
+}
+
+.dashboard-header h2 {
+  font-size: 28px;
+  color: #2e7d32;
+}
+
+.user-info-dash {
+  margin-top: 5px;
+  font-size: 16px;
+  color: #555;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+.stat-card {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+}
+
+.stat-icon {
+  font-size: 36px;
+  margin-bottom: 10px;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: bold;
+  color: #4CAF50;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: #777;
+}
+
+.nav-links {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 30px;
+}
+
+.nav-link {
+  display: block;
+  padding: 18px;
+  border-radius: 12px;
+  text-align: center;
+  text-decoration: none;
+  font-size: 18px;
+  font-weight: 500;
+  color: white;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.map-link {
+  background: linear-gradient(135deg, #2196F3, #1976D2);
+}
+
+.game-link {
+  background: linear-gradient(135deg, #4CAF50, #388E3C);
+}
+
+.instructions {
+  background: #e8f5e9;
+  padding: 15px;
+  border-radius: 12px;
+  border-left: 5px solid #4CAF50;
+  margin-top: auto; /* Pushes to the bottom */
+}
+
+.logout-button {
+  margin-top: 20px;
+  padding: 12px;
+  background-color: #f44336;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  cursor: pointer;
+}
