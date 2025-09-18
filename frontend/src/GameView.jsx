@@ -6,7 +6,7 @@ import treeSprite from './assets/tree.png';
 import cleanupSprite from './assets/cleanup.png';
 import ActionForm from './ActionForm';
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { Link, useNavigate } from 'react-router-dom'; // Import Link
+import { Link, useNavigate } from 'react-router-dom';
 
 const API_BASE = import.meta.env.PROD ? import.meta.env.VITE_API_BASE_URL : '/api';
 
@@ -43,9 +43,7 @@ const GameView = () => {
             lng: pos.coords.longitude
           });
         },
-        (err) => {
-          console.error('Geolocation error:', err);
-        },
+        (err) => console.error('Geolocation error:', err),
         { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 }
       );
     }
@@ -79,10 +77,7 @@ const GameView = () => {
   };
 
   const handleFormSubmit = async (markerData) => {
-    const finalMarkerData = {
-      ...markerData,
-      user: user.displayName || user.email
-    };
+    const finalMarkerData = { ...markerData, user: user.displayName || user.email };
     try {
       const response = await fetch(`${API_BASE}/markers`, {
         method: 'POST',
@@ -104,7 +99,7 @@ const GameView = () => {
     try {
       const response = await fetch(`${API_BASE}/markers/${markerId}`, { method: 'DELETE' });
       if (response.ok) {
-        if(map) map.closePopup();
+        if (map) map.closePopup();
         fetchMarkers();
       } else {
         alert('Failed to complete cleanup.');
@@ -123,6 +118,10 @@ const GameView = () => {
       dragging: false,
       scrollWheelZoom: false,
       doubleClickZoom: false,
+      touchZoom: false,
+      boxZoom: false,
+      keyboard: false,
+      tap: false
     });
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(leafletMap);
     setMap(leafletMap);
@@ -170,14 +169,19 @@ const GameView = () => {
   return (
     <div className="game-container">
       <div ref={mapRef} className="game-map"></div>
-      <div className="character"><img src={characterSprite} alt="character" /></div>
       
-      {/* --- New Button --- */}
-      <Link to="/dashboard" className="dashboard-button-game">
-        📊 Dashboard
-      </Link>
-
-      <button className="capture-button" onClick={handleCaptureClick}>📸</button>
+      {/* This new container will hold all UI elements and sit on top of the map */}
+      <div className="game-ui-container">
+        <Link to="/dashboard" className="dashboard-button-game">
+          📊 Dashboard
+        </Link>
+        <div className="character">
+          <img src={characterSprite} alt="character" />
+        </div>
+        <button className="capture-button" onClick={handleCaptureClick}>
+          📸
+        </button>
+      </div>
 
       <ActionForm
         show={showForm}
