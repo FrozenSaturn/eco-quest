@@ -6,7 +6,7 @@ import treeSprite from './assets/tree.png';
 import cleanupSprite from './assets/cleanup.png';
 import ActionForm from './ActionForm';
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 const API_BASE = import.meta.env.PROD ? import.meta.env.VITE_API_BASE_URL : '/api';
 
@@ -22,21 +22,17 @@ const GameView = () => {
   const auth = getAuth();
   const navigate = useNavigate();
 
-  // Get the real-time user from Firebase Auth to ensure we have the correct data
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
       } else {
-        // If the user logs out or the session expires, redirect to login
         navigate('/login');
       }
     });
-    // Cleanup the subscription when the component unmounts
     return () => unsubscribe();
   }, [auth, navigate]);
 
-  // Track user's live location
   useEffect(() => {
     let watchId;
     if ('geolocation' in navigator) {
@@ -47,9 +43,7 @@ const GameView = () => {
             lng: pos.coords.longitude
           });
         },
-        (err) => {
-          console.error('Geolocation error:', err);
-        },
+        (err) => console.error('Geolocation error:', err),
         { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 }
       );
     }
@@ -83,10 +77,7 @@ const GameView = () => {
   };
 
   const handleFormSubmit = async (markerData) => {
-    const finalMarkerData = {
-      ...markerData,
-      user: user.displayName || user.email // Use the live user's name
-    };
+    const finalMarkerData = { ...markerData, user: user.displayName || user.email };
     try {
       const response = await fetch(`${API_BASE}/markers`, {
         method: 'POST',
@@ -108,7 +99,7 @@ const GameView = () => {
     try {
       const response = await fetch(`${API_BASE}/markers/${markerId}`, { method: 'DELETE' });
       if (response.ok) {
-        if(map) map.closePopup();
+        if (map) map.closePopup();
         fetchMarkers();
       } else {
         alert('Failed to complete cleanup.');
@@ -118,15 +109,21 @@ const GameView = () => {
     }
   }, [map, fetchMarkers]);
 
+  // --- Map Initialization with Interactions Disabled ---
   useEffect(() => {
     if (!mapRef.current || map) return;
     const leafletMap = L.map(mapRef.current, {
       center: [userLocation.lat, userLocation.lng],
       zoom: 18,
       zoomControl: false,
+      // --- This is the key change ---
       dragging: false,
       scrollWheelZoom: false,
       doubleClickZoom: false,
+      touchZoom: false, // Disables pinch-to-zoom
+      boxZoom: false,
+      keyboard: false,
+      tap: false // Disables tap/click on the map pane itself
     });
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(leafletMap);
     setMap(leafletMap);
@@ -175,6 +172,7 @@ const GameView = () => {
     <div className="game-container">
       <div ref={mapRef} className="game-map"></div>
       <div className="character"><img src={characterSprite} alt="character" /></div>
+      <Link to="/dashboard" className="dashboard-button-game">📊 Dashboard</Link>
       <button className="capture-button" onClick={handleCaptureClick}>📸</button>
       <ActionForm
         show={showForm}
@@ -182,7 +180,6 @@ const GameView = () => {
         onSubmit={handleFormSubmit}
         lat={userLocation.lat}
         lng={userLocation.lng}
-        // This prop is no longer strictly needed if the parent handles the full user object, but we pass it for clarity
         currentUser={user ? user.displayName || user.email : ''}
       />
     </div>

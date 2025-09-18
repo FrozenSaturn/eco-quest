@@ -1,9 +1,7 @@
-// frontend/src/Dashboard.jsx
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
-import './Dashboard.css'; // We will create this CSS file next
+import './Dashboard.css';
 
 const API_BASE = import.meta.env.PROD ? import.meta.env.VITE_API_BASE_URL : '/api';
 
@@ -37,7 +35,9 @@ const Dashboard = () => {
     fetchStats();
   }, []);
 
-  const handleLogout = () => signOut(auth);
+  const handleLogout = () => {
+    signOut(auth).catch(error => console.error("Logout failed:", error));
+  };
 
   if (!user) {
     return <div>Loading...</div>; // Or a proper loading spinner
@@ -77,16 +77,16 @@ const Dashboard = () => {
         <Link to="/game" className="nav-link game-link">
           🎮 Go to Game View
         </Link>
+        {/* --- Logout button is now here --- */}
+        <button onClick={handleLogout} className="nav-link logout-button">
+          Logout
+        </button>
       </div>
 
       <div className="instructions">
         <h4>How to play:</h4>
         <p>Go to the map view and tap anywhere to log an environmental action!</p>
       </div>
-
-      <button onClick={handleLogout} className="logout-button">
-        Logout
-      </button>
     </div>
   );
 };
